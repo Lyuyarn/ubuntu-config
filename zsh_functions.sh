@@ -260,10 +260,11 @@ alias l="ls -lah --color=auto"
 f() {
     process_num=$(($(nproc) - 1)) # max 64
     process_num=$(($process_num > 64 ? 64 : $process_num))
+    process_num=$(($process_num == 0 ? 64 : $process_num))
     if [[ -z "$1" ]]; then
-        fd -j$process_num . | fzf | sort
+        fd -L -j$process_num . | fzf | sort
     else
-        fd -j$process_num --max-depth $1 | fzf | sort
+        fd -L -j$process_num --max-depth $1 | fzf | sort
     fi
 }
 alias gcs="s5cmd --profile gcs --endpoint-url https://storage.googleapis.com --log debug --stat"

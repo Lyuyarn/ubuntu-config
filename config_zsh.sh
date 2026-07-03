@@ -38,6 +38,11 @@ zle -N insert-unambiguous-or-complete
 zle -N menu-search
 zle -N recent-paths
 
+setopt INC_APPEND_HISTORY # Append to the history file immediately, not when the shell exits
+setopt SHARE_HISTORY # Share history between all open terminal sessions
+setopt HIST_EXPIRE_DUPS_FIRST # Expire duplicate entries first when trimming history
+setopt HIST_IGNORE_DUPS # Don't record an entry that was just recorded
+
 plugins=(
   git
   zsh-autosuggestions
