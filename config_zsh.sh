@@ -114,4 +114,14 @@ source <(fzf --zsh)
 ' >> ~/.zshrc
 
 # Copy the configuration file for powerlevel10k. Please remove it if you would like to configure it by yourself.
-cp ./p10k.zsh ~/.p10k.zsh
+# cp ./p10k.zsh ~/.p10k.zsh
+
+## To set customized prompt
+# setopt PROMPT_SUBST
+# parse_git_branch() {
+#     local branch=$(git branch --show-current 2> /dev/null)
+#     if [[ -n $branch ]]; then
+#         echo "%F{green}$branch%f"
+#     fi
+# }
+# export PROMPT='$(parse_git_branch) %F{cyan}%~ %F{reset}%# '

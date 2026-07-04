@@ -326,6 +326,7 @@ tar_copy() {
     tar -cf - -C "$src" . | tar -xf - -C "$full_dest"
 }
 
+
 hfdl () {
     if [ $# -lt 1 ] || [ $# -gt 2 ]; then
         echo "Usage: hfdl <bucket_path> [local_dest]"
@@ -341,6 +342,21 @@ hfdl () {
         dest="${2%/}" # Remove trailing slash
     else
         dest="."
+    fi
+
+    # Single file in the bucket (ls -q returns the path itself, not children):
+    # plain copy, like `cp file dest`
+    local entries
+    entries=$(hf buckets ls "$src" -q 2>/dev/null)
+    if [ "$entries" = "$1" ]; then
+        local file_dest="$dest"
+        if [ -d "$dest" ]; then
+            file_dest="$dest/$dir_name"
+        fi
+        local command="hf buckets cp $src $file_dest"
+        echo "running command: $command"
+        eval $command
+        return $?
     fi
 
     # Imitate `cp -r remote dest`. If dest already exists and is non-empty,
@@ -440,6 +456,52 @@ hful () {
         echo "Aborted."
         return 1
     fi
+}
+
+hfbrowse () {
+    # Browse a HuggingFace bucket with yazi.
+    # yazi is a local file manager and cannot open hf:// directly, so this
+    # mirrors the bucket listing into a temp dir of empty placeholder files
+    # and opens yazi there. Navigate interactively, then use hfdl to download.
+    # Usage: hfbrowse [bucket_path]   (defaults to the whole bucket root)
+
+    local bucket_root="hf://buckets/nvidia/camera-cross-embodiment"
+    local rel="${1#/}"; rel="${rel%/}"
+    local src="$bucket_root${rel:+/$rel}"
+
+    if [ -z "$rel" ]; then
+        echo "No path given -> mirroring the entire bucket root (may be slow/large)."
+    fi
+    echo "Listing $src recursively..."
+
+    local listing
+    listing=$(hf buckets ls "$src" -R -q 2>/dev/null)
+    if [ -z "$listing" ]; then
+        echo "Nothing found under '${rel:-/}' (or path does not exist)."
+        return 1
+    fi
+
+    local shadow
+    shadow=$(mktemp -d -t "hfbrowse.XXXXXX")
+
+    # Recreate the bucket tree as empty placeholder files. Paths from -q are
+    # relative to the bucket root; trailing slash marks a directory.
+    # NB: do NOT name this loop var "path" — in zsh that is the special array
+    # tied to $PATH, and clobbering it breaks every external command (mkdir,
+    # dirname) for the rest of the loop.
+    echo "$listing" | while IFS= read -r entry; do
+        [ -z "$entry" ] && continue
+        case "$entry" in
+            */) mkdir -p "$shadow/${entry%/}" ;;
+            *)  mkdir -p "$shadow/$(dirname -- "$entry")"
+                : > "$shadow/$entry" ;;
+        esac
+    done
+
+    echo "Browsing a shadow of $src"
+    echo "(entries are empty placeholders; download with: hfdl <bucket_path>)"
+    yazi "$shadow"
+
 }
 
 hfrm () {
