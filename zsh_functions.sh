@@ -403,7 +403,12 @@ hful () {
 
     local src="${1%/}" # Remove trailing slash
     local bucket_root="hf://buckets/nvidia/camera-cross-embodiment"
-    local dest="$bucket_root/$2"
+    # Normalize bucket path: the Hub rejects remote paths starting with "./",
+    # so strip trailing "/" and leading "./", and map "." to the bucket root.
+    local bucket_path="${2%/}"
+    bucket_path="${bucket_path#./}"
+    [ "$bucket_path" = "." ] && bucket_path=""
+    local dest="${bucket_root}${bucket_path:+/$bucket_path}"
 
     # Single file: plain copy, like `cp file dest`
     if [ -f "$src" ]; then
@@ -426,9 +431,9 @@ hful () {
     local target="$dest"
     if [ -n "$existing" ]; then
         target="$dest/$dir_name"
-        echo "Destination '$2' already exists and is non-empty -> syncing into '$2/$dir_name'"
+        echo "Destination '${bucket_path:-<bucket root>}' already exists and is non-empty -> syncing into '${bucket_path:+$bucket_path/}$dir_name'"
     else
-        echo "Destination '$2' is empty or missing -> syncing into '$2'"
+        echo "Destination '${bucket_path:-<bucket root>}' is empty or missing -> syncing into '${bucket_path:-<bucket root>}'"
     fi
 
     echo ""
@@ -441,8 +446,9 @@ hful () {
 
     echo ""
     echo "=== Expected new entries under $target ==="
-    local target_rel="${target#$bucket_root/}"
-    (cd "$src" && find . -mindepth 1 -maxdepth 1 | sed "s|^\./|$target_rel/|")
+    local target_rel="${target#$bucket_root}"
+    target_rel="${target_rel#/}"
+    (cd "$src" && find . -mindepth 1 -maxdepth 1 | sed "s|^\./|${target_rel:+$target_rel/}|")
 
     echo ""
     local command="hf buckets sync $src $target"
